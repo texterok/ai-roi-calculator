@@ -14,31 +14,69 @@
     <p class="subtitle">На основе методологии оценки финансовой эффективности ИИ (Альянс в сфере ИИ / Ассоциация ФинТех)</p>
 
     <div class="steps">
-      <div class="step-indicator active" onclick="goToStep(1)"><span class="step-num">1</span>Тип эффекта</div>
-      <div class="step-indicator" onclick="goToStep(2)"><span class="step-num">2</span>Параметры</div>
-      <div class="step-indicator" onclick="goToStep(3)"><span class="step-num">3</span>Затраты</div>
-      <div class="step-indicator" onclick="goToStep(4)"><span class="step-num">4</span>Результаты</div>
+      <div class="step-indicator active" onclick="goToStep(0)"><span class="step-num">1</span>Сценарий</div>
+      <div class="step-indicator" onclick="goToStep(1)"><span class="step-num">2</span>Эффекты</div>
+      <div class="step-indicator" onclick="goToStep(2)"><span class="step-num">3</span>Параметры</div>
+      <div class="step-indicator" onclick="goToStep(3)"><span class="step-num">4</span>Затраты</div>
+      <div class="step-indicator" onclick="goToStep(4)"><span class="step-num">5</span>Результаты</div>
     </div>
 
-    <!-- STEP 1: Effect Type Selection -->
-    <div id="step-1" class="step-panel active">
+    <!-- STEP 0: Scenario Selection -->
+    <div id="step-0" class="step-panel active">
       <div class="step-hint">
-        <span class="material-symbols-outlined hint-icon">lightbulb</span>
+        <span class="material-symbols-outlined hint-icon">route</span>
         <div>
-          <strong>Выберите, какие эффекты даёт ваше ИИ-решение</strong>
-          <p>Можно выбрать несколько. Каждый тип эффекта влияет на разные строки P&L: доходы, расходы, резервы или капитал. Это определит, какие параметры вы будете заполнять на следующем шаге.</p>
+          <strong>Что вы внедряете?</strong>
+          <p>Продуктовый и процессный ИИ имеют разные сроки окупаемости, уровни риска и ключевые метрики. Выбор сценария определит рекомендуемые типы эффектов и отраслевые бенчмарки.</p>
         </div>
       </div>
 
-      <div class="effect-grid">
-        {% for key, et in effect_types.items() %}
-        <div class="effect-card" data-effect="{{ key }}">
-          <div class="icon"><span class="material-symbols-outlined">{{ et.icon }}</span></div>
-          <h3>{{ et.label }}</h3>
-          <p>{{ et.description }}</p>
-          <div class="pnl-tag">{{ et.pnl_impact }}</div>
+      <div class="scenario-grid">
+        <div class="scenario-card" data-scenario="product" onclick="selectScenario('product')">
+          <div class="scenario-icon"><span class="material-symbols-outlined">widgets</span></div>
+          <h3>ИИ в продукте</h3>
+          <p class="scenario-desc">ИИ встроен в продукт для клиента: рекомендации, скоринг, персонализация, антифрод, динамическое ценообразование</p>
+          <div class="scenario-meta">
+            <div class="meta-row">
+              <span class="material-symbols-outlined meta-icon">timer</span>
+              <span>Окупаемость: 18-30 мес</span>
+            </div>
+            <div class="meta-row">
+              <span class="material-symbols-outlined meta-icon">trending_up</span>
+              <span>ROI (3 года): 150-400%</span>
+            </div>
+            <div class="meta-row">
+              <span class="material-symbols-outlined meta-icon">warning</span>
+              <span>Риск: высокий (45-55% пилотов не масштабируются)</span>
+            </div>
+          </div>
+          <div class="scenario-examples">
+            <strong>Примеры:</strong> Модели отклика (Сбер, 182 млрд), кредитный скоринг (Альфа-Банк), модель привлечения (Газпромбанк)
+          </div>
         </div>
-        {% endfor %}
+
+        <div class="scenario-card" data-scenario="process" onclick="selectScenario('process')">
+          <div class="scenario-icon"><span class="material-symbols-outlined">precision_manufacturing</span></div>
+          <h3>ИИ в процессе</h3>
+          <p class="scenario-desc">ИИ автоматизирует внутренние операции: чат-боты, обработка документов, маршрутизация, автоматическая отчётность</p>
+          <div class="scenario-meta">
+            <div class="meta-row">
+              <span class="material-symbols-outlined meta-icon">timer</span>
+              <span>Окупаемость: 6-14 мес</span>
+            </div>
+            <div class="meta-row">
+              <span class="material-symbols-outlined meta-icon">trending_up</span>
+              <span>ROI (3 года): 80-150%</span>
+            </div>
+            <div class="meta-row">
+              <span class="material-symbols-outlined meta-icon">verified</span>
+              <span>Риск: умеренный (55-65% доходят до прода)</span>
+            </div>
+          </div>
+          <div class="scenario-examples">
+            <strong>Примеры:</strong> Чат-бот (Т-Банк, 433 млн/мес), автооценка залогов (РСХБ), Wiki-поиск для КЦ (ВТБ)
+          </div>
+        </div>
       </div>
 
       <!-- How it works -->
@@ -48,29 +86,29 @@
           <div class="how-card">
             <div class="how-num">1</div>
             <div>
-              <strong>Выбираете типы эффектов</strong>
-              <p>8 категорий из методологии: от роста выручки до оптимизации капитала. Выберите те, что применимы к вашему ИИ-решению.</p>
+              <strong>Выбираете сценарий внедрения</strong>
+              <p>ИИ в продукте (выручка, конверсия, LTV) или ИИ в процессе (OPEX, ФОТ, скорость). Разные бенчмарки, разные риски.</p>
             </div>
           </div>
           <div class="how-card">
             <div class="how-num">2</div>
             <div>
               <strong>Указываете параметры AS IS / TO BE</strong>
-              <p>Текущие показатели (до ИИ) и ожидаемые (после). Калькулятор посчитает инкрементальный эффект с учётом каннибализации и срока жизни продукта.</p>
+              <p>Текущие показатели и ожидаемые. Инкрементальный эффект с учётом каннибализации и срока жизни продукта.</p>
             </div>
           </div>
           <div class="how-card">
             <div class="how-num">3</div>
             <div>
               <strong>Вводите затраты на ИИ</strong>
-              <p>Команда, серверы, лицензии, внешняя разработка. Методология требует <em>нетто-подход</em> &mdash; учитываем все расходы, а не только доходную часть.</p>
+              <p>Команда, серверы, лицензии. Методология требует <em>нетто-подход</em> &mdash; учитываем все расходы.</p>
             </div>
           </div>
           <div class="how-card">
             <div class="how-num">4</div>
             <div>
               <strong>Получаете ROI, NPV и payback</strong>
-              <p>Dashboard с ключевыми метриками, помесячным cashflow на 3 года и сравнением с бенчмарками отрасли (Сбер, McKinsey). Плюс проверка на типовые ошибки.</p>
+              <p>Dashboard с бенчмарками вашего сценария и проверкой на типовые ошибки из методологии.</p>
             </div>
           </div>
         </div>
@@ -79,12 +117,38 @@
           <span class="material-symbols-outlined">verified</span>
           <div>
             <strong>Основано на отраслевом стандарте</strong>
-            <p>Методология разработана при участии Сбера, Т-Банка, Альфа-Банка, ВТБ, Московской Биржи и других лидеров. Включает 7 принципов оценки, формулы расчёта и реальные кейсы с эффектом от 50 млн до 182 млрд руб.</p>
+            <p>Методология разработана при участии Сбера, Т-Банка, Альфа-Банка, ВТБ, Московской Биржи и других лидеров. Дополнена бенчмарками McKinsey, Gartner, BCG и Deloitte.</p>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- STEP 1: Effect Type Selection -->
+    <div id="step-1" class="step-panel">
+      <div class="step-hint" id="step1-hint">
+        <span class="material-symbols-outlined hint-icon">lightbulb</span>
+        <div>
+          <strong>Выберите типы эффектов</strong>
+          <p>Рекомендуемые для вашего сценария выделены. Можно добавить дополнительные.</p>
+        </div>
+      </div>
+
+      <div id="scenario-benchmarks" class="scenario-benchmarks-bar" style="display:none;"></div>
+
+      <div class="effect-grid">
+        {% for key, et in effect_types.items() %}
+        <div class="effect-card" data-effect="{{ key }}">
+          <div class="effect-card-badge" style="display:none;">Рекомендуем</div>
+          <div class="icon"><span class="material-symbols-outlined">{{ et.icon }}</span></div>
+          <h3>{{ et.label }}</h3>
+          <p>{{ et.description }}</p>
+          <div class="pnl-tag">{{ et.pnl_impact }}</div>
+        </div>
+        {% endfor %}
+      </div>
 
       <div class="btn-row">
+        <button class="btn btn-secondary" onclick="goToStep(0)">Назад</button>
         <button class="btn btn-primary" onclick="goToStep(2)">Далее</button>
       </div>
     </div>
@@ -95,7 +159,7 @@
         <span class="material-symbols-outlined hint-icon">compare_arrows</span>
         <div>
           <strong>Укажите текущие (AS IS) и ожидаемые (TO BE) показатели</strong>
-          <p>Разница между ними &mdash; это инкрементальный эффект вашего ИИ-решения. Используйте слайдеры для быстрого подбора или введите точное значение. Принцип консерватизма: лучше занизить доходы и завысить расходы.</p>
+          <p>Разница &mdash; инкрементальный эффект вашего ИИ-решения. Принцип консерватизма: лучше занизить доходы и завысить расходы.</p>
         </div>
       </div>
       <div id="effect-forms"></div>
@@ -111,13 +175,15 @@
         <span class="material-symbols-outlined hint-icon">account_balance_wallet</span>
         <div>
           <strong>Учтите все затраты на ИИ-решение</strong>
-          <p>Методология требует <strong>нетто-подход</strong>: чистый эффект = gross эффект минус все затраты. Без полного учёта расходов оценка ROI будет завышена. Включайте ФОТ, серверы, лицензии и внешнюю разработку.</p>
+          <p>Методология требует <strong>нетто-подход</strong>: чистый эффект = gross минус все затраты.</p>
         </div>
       </div>
 
+      <div id="cost-benchmarks" class="scenario-benchmarks-bar" style="display:none;"></div>
+
       <div class="form-section">
         <h3>ФОТ команды ИИ</h3>
-        <p class="section-hint">Полная стоимость сотрудника = ЗП + взносы 30.2% + бонус + аллокация рабочего места. Это обычно 50-70% всех затрат на ИИ.</p>
+        <p class="section-hint">Полная стоимость сотрудника = ЗП + взносы 30.2% + бонус + аллокация. Обычно 50-70% всех затрат на ИИ.</p>
         <div class="form-row">
           <div class="form-group">
             <label>Кол-во сотрудников (ПШЕ)</label>
@@ -156,7 +222,7 @@
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>Расходы на рабочее место (аллокация)</label>
+            <label>Расходы на рабочее место</label>
             <div class="slider-input">
               <input type="range" min="0" max="200" step="5" value="30" data-cost="office_allocation_monthly" oninput="syncSlider(this)">
               <input type="number" step="1" value="30" data-cost="office_allocation_monthly" oninput="syncNumber(this)">
@@ -168,7 +234,7 @@
 
       <div class="form-section">
         <h3>Серверная инфраструктура</h3>
-        <p class="section-hint">Разделяйте AI-specific ресурсы (GPU) и shared-платформы (аллокация пропорционально потреблению). Облачные API &mdash; это OpenAI, Claude и подобные.</p>
+        <p class="section-hint">AI-specific ресурсы (GPU) + shared-платформы + облачные API.</p>
         <div class="form-row">
           <div class="form-group">
             <label>GPU серверы (AI-specific)</label>
@@ -201,7 +267,7 @@
 
       <div class="form-section">
         <h3>Внешние расходы</h3>
-        <p class="section-hint">Разовые расходы (консалтинг, внешняя разработка) амортизируются на 3 года. Лицензии &mdash; ежегодные.</p>
+        <p class="section-hint">Разовые расходы амортизируются на 3 года. Лицензии ежегодные.</p>
         <div class="form-row">
           <div class="form-group">
             <label>Лицензии</label>
@@ -234,7 +300,7 @@
 
       <div class="form-section">
         <h3>Временные параметры</h3>
-        <p class="section-hint">Срок разработки &mdash; период до запуска (только затраты, эффект = 0). Ramp-up &mdash; период выхода на полный эффект после запуска. Это влияет на NPV и срок окупаемости.</p>
+        <p class="section-hint">Срок разработки: только затраты. Ramp-up: выход на полный эффект. Влияет на NPV и payback.</p>
         <div class="form-row">
           <div class="form-group">
             <label>Срок разработки до запуска</label>
@@ -245,7 +311,7 @@
             <span class="unit">мес</span>
           </div>
           <div class="form-group">
-            <label>Период выхода на полный эффект (ramp-up)</label>
+            <label>Ramp-up (выход на полный эффект)</label>
             <div class="slider-input">
               <input type="range" min="0" max="12" step="1" value="3" data-cost="ramp_up_months" oninput="syncSlider(this)">
               <input type="number" step="1" value="3" data-cost="ramp_up_months" oninput="syncNumber(this)">
@@ -277,9 +343,11 @@
         <span class="material-symbols-outlined hint-icon">analytics</span>
         <div>
           <strong>Результаты расчёта</strong>
-          <p>Чистый эффект = gross эффект минус все затраты. ROI показывает отдачу на каждый вложенный рубль. NPV учитывает стоимость денег во времени на горизонте 3 лет. Обратите внимание на предупреждения &mdash; они помогут избежать типовых ошибок.</p>
+          <p>Чистый эффект = gross минус затраты. ROI — отдача на рубль. NPV учитывает стоимость денег на горизонте 3 лет.</p>
         </div>
       </div>
+
+      <div id="scenario-results-bar" class="scenario-benchmarks-bar" style="display:none;"></div>
 
       <div class="kpi-grid">
         <div class="kpi-card">
@@ -303,9 +371,7 @@
       <div class="chart-container">
         <h3>Декомпозиция эффекта (Waterfall)</h3>
         <table class="waterfall-table">
-          <thead>
-            <tr><th>Компонент</th><th class="amount">Сумма</th></tr>
-          </thead>
+          <thead><tr><th>Компонент</th><th class="amount">Сумма</th></tr></thead>
           <tbody id="waterfall-body"></tbody>
         </table>
       </div>

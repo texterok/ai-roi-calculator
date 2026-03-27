@@ -381,6 +381,134 @@ h1 {
   box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
 }
 
+/* Scenario cards */
+.scenario-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.scenario-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.scenario-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.scenario-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.scenario-icon {
+  font-size: 36px;
+  margin-bottom: 14px;
+  color: var(--accent);
+}
+
+.scenario-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.scenario-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.scenario-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.meta-icon {
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.scenario-examples {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.scenario-examples strong {
+  color: var(--text-secondary);
+}
+
+/* Scenario benchmarks bar */
+.scenario-benchmarks-bar {
+  display: flex;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.scenario-benchmarks-bar .sb-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.scenario-benchmarks-bar .sb-value {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Effect card recommended badge */
+.effect-card-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+.effect-card.recommended {
+  border-color: var(--accent);
+  order: -1;
+}
+
+.effect-card.dimmed {
+  opacity: 0.55;
+}
+
 /* Effect cards grid */
 .effect-grid {
   display: grid;
@@ -723,5 +851,6 @@ h1 {
   .benchmark-list { grid-template-columns: 1fr; }
   .steps { flex-direction: column; }
   .how-grid { grid-template-columns: 1fr; }
+  .scenario-grid { grid-template-columns: 1fr; }
   .slider-input input[type="number"] { width: 80px; }
 }

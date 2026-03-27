@@ -1,8 +1,47 @@
 const state = {
-  currentStep: 1,
+  currentStep: 0,
+  scenario: null,
   selectedEffects: new Set(),
   result: null,
 };
+
+const SCENARIOS = {
+  product: {
+    label: 'ИИ в продукте',
+    recommended: ['revenue_growth', 'risk_reduction', 'reserve_recovery', 'capital_cost_reduction'],
+    benchmarks: [
+      { label: 'Окупаемость', value: '18-30 мес' },
+      { label: 'ROI (год 1)', value: '20-50%' },
+      { label: 'ROI (3 года)', value: '150-400%' },
+      { label: 'Риск провала', value: '45-55%' },
+      { label: 'Revenue uplift', value: '3-15%' },
+    ],
+    costHint: 'Продуктовый ИИ обычно требует $500K-$2M инвестиций. Ongoing: 30-50% от начальных в год (данные, ML Ops, мониторинг).',
+    resultNote: 'Продуктовый ИИ имеет долгий payback, но эффект компаундится: больше пользователей = больше данных = лучше модели. Потолок не ограничен.',
+  },
+  process: {
+    label: 'ИИ в процессе',
+    recommended: ['opex_reduction', 'fte_optimization', 'risk_reduction', 'liquidity_release'],
+    benchmarks: [
+      { label: 'Окупаемость', value: '6-14 мес' },
+      { label: 'ROI (год 1)', value: '40-80%' },
+      { label: 'ROI (3 года)', value: '80-150%' },
+      { label: 'Риск провала', value: '30-40%' },
+      { label: 'OPEX снижение', value: '20-40%' },
+    ],
+    costHint: 'Процессный ИИ обычно требует $100K-$500K. Ongoing: 20-40% от начальных в год (поддержка, дообучение).',
+    resultNote: 'Процессный ИИ окупается быстро, но эффект ограничен: расходы можно снизить только до нуля. Бенчмарк McKinsey: ~10% снижения OPEX.',
+  },
+};
+
+function selectScenario(key) {
+  state.scenario = key;
+  document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`[data-scenario="${key}"]`).classList.add('selected');
+
+  // Auto-advance after short delay
+  setTimeout(() => goToStep(1), 300);
+}
 
 // Slider <-> Number sync
 function syncSlider(rangeEl) {
@@ -22,6 +61,10 @@ function syncNumber(numEl) {
 }
 
 function goToStep(n) {
+  if (n === 1 && !state.scenario) {
+    alert('Выберите сценарий внедрения');
+    return;
+  }
   if (n === 2 && state.selectedEffects.size === 0) {
     alert('Выберите хотя бы один тип эффекта');
     return;
@@ -31,12 +74,60 @@ function goToStep(n) {
   document.getElementById(`step-${n}`).classList.add('active');
   document.querySelectorAll('.step-indicator').forEach((s, i) => {
     s.classList.remove('active');
-    s.classList.toggle('completed', i + 1 < n);
-    if (i + 1 === n) s.classList.add('active');
+    s.classList.toggle('completed', i < n);
+    if (i === n) s.classList.add('active');
   });
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
+  if (n === 1) applyScenario();
   if (n === 2) renderEffectForms();
+  if (n === 3) showCostBenchmarks();
+  if (n === 4) showResultScenarioBar();
+}
+
+function applyScenario() {
+  const sc = SCENARIOS[state.scenario];
+  if (!sc) return;
+
+  // Show benchmarks bar
+  const bar = document.getElementById('scenario-benchmarks');
+  bar.style.display = 'flex';
+  bar.innerHTML = sc.benchmarks.map(b =>
+    `<div class="sb-item"><span>${b.label}:</span> <span class="sb-value">${b.value}</span></div>`
+  ).join('');
+
+  // Highlight recommended effects, dim others
+  document.querySelectorAll('.effect-card').forEach(card => {
+    const key = card.dataset.effect;
+    const badge = card.querySelector('.effect-card-badge');
+    const isRec = sc.recommended.includes(key);
+
+    card.classList.toggle('recommended', isRec);
+    card.classList.toggle('dimmed', !isRec);
+    badge.style.display = isRec ? 'inline-block' : 'none';
+
+    // Auto-select recommended
+    if (isRec && !state.selectedEffects.has(key)) {
+      state.selectedEffects.add(key);
+      card.classList.add('selected');
+    }
+  });
+}
+
+function showCostBenchmarks() {
+  const sc = SCENARIOS[state.scenario];
+  if (!sc) return;
+  const bar = document.getElementById('cost-benchmarks');
+  bar.style.display = 'flex';
+  bar.innerHTML = `<div class="sb-item" style="flex:1"><span class="material-symbols-outlined meta-icon" style="font-size:16px">info</span> ${sc.costHint}</div>`;
+}
+
+function showResultScenarioBar() {
+  const sc = SCENARIOS[state.scenario];
+  if (!sc) return;
+  const bar = document.getElementById('scenario-results-bar');
+  bar.style.display = 'flex';
+  bar.innerHTML = `<div class="sb-item" style="flex:1"><span class="material-symbols-outlined meta-icon" style="font-size:16px">lightbulb</span> <strong>${sc.label}:</strong>&nbsp;${sc.resultNote}</div>`;
 }
 
 function toggleEffect(key) {
