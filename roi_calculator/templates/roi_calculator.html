@@ -22,6 +22,14 @@
 
     <!-- STEP 1: Effect Type Selection -->
     <div id="step-1" class="step-panel active">
+      <div class="step-hint">
+        <span class="material-symbols-outlined hint-icon">lightbulb</span>
+        <div>
+          <strong>Выберите, какие эффекты даёт ваше ИИ-решение</strong>
+          <p>Можно выбрать несколько. Каждый тип эффекта влияет на разные строки P&L: доходы, расходы, резервы или капитал. Это определит, какие параметры вы будете заполнять на следующем шаге.</p>
+        </div>
+      </div>
+
       <div class="effect-grid">
         {% for key, et in effect_types.items() %}
         <div class="effect-card" data-effect="{{ key }}">
@@ -32,6 +40,50 @@
         </div>
         {% endfor %}
       </div>
+
+      <!-- How it works -->
+      <div class="how-it-works">
+        <h2>Как работает калькулятор</h2>
+        <div class="how-grid">
+          <div class="how-card">
+            <div class="how-num">1</div>
+            <div>
+              <strong>Выбираете типы эффектов</strong>
+              <p>8 категорий из методологии: от роста выручки до оптимизации капитала. Выберите те, что применимы к вашему ИИ-решению.</p>
+            </div>
+          </div>
+          <div class="how-card">
+            <div class="how-num">2</div>
+            <div>
+              <strong>Указываете параметры AS IS / TO BE</strong>
+              <p>Текущие показатели (до ИИ) и ожидаемые (после). Калькулятор посчитает инкрементальный эффект с учётом каннибализации и срока жизни продукта.</p>
+            </div>
+          </div>
+          <div class="how-card">
+            <div class="how-num">3</div>
+            <div>
+              <strong>Вводите затраты на ИИ</strong>
+              <p>Команда, серверы, лицензии, внешняя разработка. Методология требует <em>нетто-подход</em> &mdash; учитываем все расходы, а не только доходную часть.</p>
+            </div>
+          </div>
+          <div class="how-card">
+            <div class="how-num">4</div>
+            <div>
+              <strong>Получаете ROI, NPV и payback</strong>
+              <p>Dashboard с ключевыми метриками, помесячным cashflow на 3 года и сравнением с бенчмарками отрасли (Сбер, McKinsey). Плюс проверка на типовые ошибки.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="methodology-note">
+          <span class="material-symbols-outlined">verified</span>
+          <div>
+            <strong>Основано на отраслевом стандарте</strong>
+            <p>Методология разработана при участии Сбера, Т-Банка, Альфа-Банка, ВТБ, Московской Биржи и других лидеров. Включает 7 принципов оценки, формулы расчёта и реальные кейсы с эффектом от 50 млн до 182 млрд руб.</p>
+          </div>
+        </div>
+      </div>
+
       <div class="btn-row">
         <button class="btn btn-primary" onclick="goToStep(2)">Далее</button>
       </div>
@@ -39,6 +91,13 @@
 
     <!-- STEP 2: Effect Parameters -->
     <div id="step-2" class="step-panel">
+      <div class="step-hint">
+        <span class="material-symbols-outlined hint-icon">compare_arrows</span>
+        <div>
+          <strong>Укажите текущие (AS IS) и ожидаемые (TO BE) показатели</strong>
+          <p>Разница между ними &mdash; это инкрементальный эффект вашего ИИ-решения. Используйте слайдеры для быстрого подбора или введите точное значение. Принцип консерватизма: лучше занизить доходы и завысить расходы.</p>
+        </div>
+      </div>
       <div id="effect-forms"></div>
       <div class="btn-row">
         <button class="btn btn-secondary" onclick="goToStep(1)">Назад</button>
@@ -48,36 +107,60 @@
 
     <!-- STEP 3: Costs -->
     <div id="step-3" class="step-panel">
+      <div class="step-hint">
+        <span class="material-symbols-outlined hint-icon">account_balance_wallet</span>
+        <div>
+          <strong>Учтите все затраты на ИИ-решение</strong>
+          <p>Методология требует <strong>нетто-подход</strong>: чистый эффект = gross эффект минус все затраты. Без полного учёта расходов оценка ROI будет завышена. Включайте ФОТ, серверы, лицензии и внешнюю разработку.</p>
+        </div>
+      </div>
+
       <div class="form-section">
         <h3>ФОТ команды ИИ</h3>
+        <p class="section-hint">Полная стоимость сотрудника = ЗП + взносы 30.2% + бонус + аллокация рабочего места. Это обычно 50-70% всех затрат на ИИ.</p>
         <div class="form-row">
           <div class="form-group">
             <label>Кол-во сотрудников (ПШЕ)</label>
-            <input type="number" step="0.1" value="3" data-cost="team_fte">
+            <div class="slider-input">
+              <input type="range" min="0" max="50" step="1" value="3" data-cost="team_fte" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="3" data-cost="team_fte" oninput="syncNumber(this)">
+            </div>
             <span class="unit">чел</span>
           </div>
           <div class="form-group">
             <label>Средняя ЗП (gross)</label>
-            <input type="number" step="1" value="300" data-cost="avg_salary_monthly">
+            <div class="slider-input">
+              <input type="range" min="50" max="1000" step="10" value="300" data-cost="avg_salary_monthly" oninput="syncSlider(this)">
+              <input type="number" step="1" value="300" data-cost="avg_salary_monthly" oninput="syncNumber(this)">
+            </div>
             <span class="unit">тыс. руб./мес</span>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Ставка взносов (ФСС/ПФР/ФОМС)</label>
-            <input type="number" step="0.1" value="30.2" data-cost="tax_rate_pct">
+            <div class="slider-input">
+              <input type="range" min="0" max="50" step="0.1" value="30.2" data-cost="tax_rate_pct" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="30.2" data-cost="tax_rate_pct" oninput="syncNumber(this)">
+            </div>
             <span class="unit">%</span>
           </div>
           <div class="form-group">
             <label>Бонус</label>
-            <input type="number" step="0.5" value="2" data-cost="bonus_months">
+            <div class="slider-input">
+              <input type="range" min="0" max="12" step="0.5" value="2" data-cost="bonus_months" oninput="syncSlider(this)">
+              <input type="number" step="0.5" value="2" data-cost="bonus_months" oninput="syncNumber(this)">
+            </div>
             <span class="unit">мес/год</span>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Расходы на рабочее место (аллокация)</label>
-            <input type="number" step="1" value="30" data-cost="office_allocation_monthly">
+            <div class="slider-input">
+              <input type="range" min="0" max="200" step="5" value="30" data-cost="office_allocation_monthly" oninput="syncSlider(this)">
+              <input type="number" step="1" value="30" data-cost="office_allocation_monthly" oninput="syncNumber(this)">
+            </div>
             <span class="unit">тыс. руб./мес на чел</span>
           </div>
         </div>
@@ -85,22 +168,32 @@
 
       <div class="form-section">
         <h3>Серверная инфраструктура</h3>
+        <p class="section-hint">Разделяйте AI-specific ресурсы (GPU) и shared-платформы (аллокация пропорционально потреблению). Облачные API &mdash; это OpenAI, Claude и подобные.</p>
         <div class="form-row">
           <div class="form-group">
             <label>GPU серверы (AI-specific)</label>
-            <input type="number" step="0.1" value="0" data-cost="gpu_servers_monthly">
+            <div class="slider-input">
+              <input type="range" min="0" max="50" step="0.1" value="0" data-cost="gpu_servers_monthly" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="0" data-cost="gpu_servers_monthly" oninput="syncNumber(this)">
+            </div>
             <span class="unit">млн руб./мес</span>
           </div>
           <div class="form-group">
             <label>Shared платформа (аллокация)</label>
-            <input type="number" step="0.1" value="0" data-cost="shared_platform_monthly">
+            <div class="slider-input">
+              <input type="range" min="0" max="20" step="0.1" value="0" data-cost="shared_platform_monthly" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="0" data-cost="shared_platform_monthly" oninput="syncNumber(this)">
+            </div>
             <span class="unit">млн руб./мес</span>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Облачные API (OpenAI и пр.)</label>
-            <input type="number" step="0.1" value="0" data-cost="cloud_api_monthly">
+            <div class="slider-input">
+              <input type="range" min="0" max="10" step="0.1" value="0" data-cost="cloud_api_monthly" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="0" data-cost="cloud_api_monthly" oninput="syncNumber(this)">
+            </div>
             <span class="unit">млн руб./мес</span>
           </div>
         </div>
@@ -108,22 +201,32 @@
 
       <div class="form-section">
         <h3>Внешние расходы</h3>
+        <p class="section-hint">Разовые расходы (консалтинг, внешняя разработка) амортизируются на 3 года. Лицензии &mdash; ежегодные.</p>
         <div class="form-row">
           <div class="form-group">
             <label>Лицензии</label>
-            <input type="number" step="0.1" value="0" data-cost="licenses_annual">
+            <div class="slider-input">
+              <input type="range" min="0" max="100" step="0.5" value="0" data-cost="licenses_annual" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="0" data-cost="licenses_annual" oninput="syncNumber(this)">
+            </div>
             <span class="unit">млн руб./год</span>
           </div>
           <div class="form-group">
             <label>Консалтинг (разовое)</label>
-            <input type="number" step="0.1" value="0" data-cost="consulting_total">
+            <div class="slider-input">
+              <input type="range" min="0" max="100" step="0.5" value="0" data-cost="consulting_total" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="0" data-cost="consulting_total" oninput="syncNumber(this)">
+            </div>
             <span class="unit">млн руб.</span>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Внешняя разработка (разовое)</label>
-            <input type="number" step="0.1" value="0" data-cost="external_dev_total">
+            <div class="slider-input">
+              <input type="range" min="0" max="200" step="1" value="0" data-cost="external_dev_total" oninput="syncSlider(this)">
+              <input type="number" step="0.1" value="0" data-cost="external_dev_total" oninput="syncNumber(this)">
+            </div>
             <span class="unit">млн руб.</span>
           </div>
         </div>
@@ -131,22 +234,32 @@
 
       <div class="form-section">
         <h3>Временные параметры</h3>
+        <p class="section-hint">Срок разработки &mdash; период до запуска (только затраты, эффект = 0). Ramp-up &mdash; период выхода на полный эффект после запуска. Это влияет на NPV и срок окупаемости.</p>
         <div class="form-row">
           <div class="form-group">
             <label>Срок разработки до запуска</label>
-            <input type="number" step="1" value="3" data-cost="development_months">
+            <div class="slider-input">
+              <input type="range" min="0" max="24" step="1" value="3" data-cost="development_months" oninput="syncSlider(this)">
+              <input type="number" step="1" value="3" data-cost="development_months" oninput="syncNumber(this)">
+            </div>
             <span class="unit">мес</span>
           </div>
           <div class="form-group">
             <label>Период выхода на полный эффект (ramp-up)</label>
-            <input type="number" step="1" value="3" data-cost="ramp_up_months">
+            <div class="slider-input">
+              <input type="range" min="0" max="12" step="1" value="3" data-cost="ramp_up_months" oninput="syncSlider(this)">
+              <input type="number" step="1" value="3" data-cost="ramp_up_months" oninput="syncNumber(this)">
+            </div>
             <span class="unit">мес</span>
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label>Ставка дисконтирования</label>
-            <input type="number" step="0.5" value="15" data-cost="discount_rate_annual_pct">
+            <div class="slider-input">
+              <input type="range" min="5" max="30" step="0.5" value="15" data-cost="discount_rate_annual_pct" oninput="syncSlider(this)">
+              <input type="number" step="0.5" value="15" data-cost="discount_rate_annual_pct" oninput="syncNumber(this)">
+            </div>
             <span class="unit">% годовых</span>
           </div>
         </div>
@@ -160,6 +273,14 @@
 
     <!-- STEP 4: Results -->
     <div id="step-4" class="step-panel">
+      <div class="step-hint">
+        <span class="material-symbols-outlined hint-icon">analytics</span>
+        <div>
+          <strong>Результаты расчёта</strong>
+          <p>Чистый эффект = gross эффект минус все затраты. ROI показывает отдачу на каждый вложенный рубль. NPV учитывает стоимость денег во времени на горизонте 3 лет. Обратите внимание на предупреждения &mdash; они помогут избежать типовых ошибок.</p>
+        </div>
+      </div>
+
       <div class="kpi-grid">
         <div class="kpi-card">
           <div id="kpi-net" class="kpi-value">—</div>

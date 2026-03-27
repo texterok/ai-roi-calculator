@@ -102,6 +102,205 @@ h1 {
 .step-panel { display: none; }
 .step-panel.active { display: block; }
 
+/* Step hints */
+.step-hint {
+  display: flex;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--accent-bg);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  border-radius: 12px;
+  margin-bottom: 24px;
+  align-items: flex-start;
+}
+
+.step-hint .hint-icon {
+  color: var(--accent);
+  font-size: 22px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.step-hint strong {
+  display: block;
+  font-size: 14px;
+  color: var(--accent-text);
+  margin-bottom: 4px;
+}
+
+.step-hint p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Section hints */
+.section-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: -8px 0 16px;
+  padding-bottom: 0;
+}
+
+/* How it works */
+.how-it-works {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+
+.how-it-works h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.how-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.how-card {
+  display: flex;
+  gap: 14px;
+  padding: 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  align-items: flex-start;
+}
+
+.how-num {
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.how-card strong {
+  font-size: 13px;
+  color: var(--text);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.how-card p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.methodology-note {
+  display: flex;
+  gap: 14px;
+  padding: 18px 20px;
+  background: var(--success-bg);
+  border: 1px solid rgba(22, 163, 74, 0.15);
+  border-radius: 12px;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.methodology-note > .material-symbols-outlined {
+  color: var(--success);
+  font-size: 22px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.methodology-note strong {
+  display: block;
+  font-size: 14px;
+  color: #15803D;
+  margin-bottom: 4px;
+}
+
+.methodology-note p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Slider + number input combo */
+.slider-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-input input[type="range"] {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider-input input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  transition: transform 0.1s;
+}
+
+.slider-input input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.slider-input input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 3px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.slider-input input[type="number"] {
+  width: 90px;
+  flex-shrink: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+  text-align: right;
+  transition: border-color 0.15s;
+}
+
+.slider-input input[type="number"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
+}
+
 /* Effect cards grid */
 .effect-grid {
   display: grid;
@@ -443,4 +642,6 @@ h1 {
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .benchmark-list { grid-template-columns: 1fr; }
   .steps { flex-direction: column; }
+  .how-grid { grid-template-columns: 1fr; }
+  .slider-input input[type="number"] { width: 80px; }
 }
