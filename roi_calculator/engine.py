@@ -18,10 +18,13 @@ def _fte_full_cost_monthly(salary, tax_pct, bonus_months, office_cost):
 
 
 def calc_revenue_growth(inp: RevenueGrowthInput) -> float:
+    # FIX CFO-1: каннибализация только на дельту выручки, не на кросс-продажи
+    # FIX CFO-3: product_lifetime теперь используется (cap на 12 мес в годовом расчёте)
     delta = inp.expected_revenue_monthly - inp.baseline_revenue_monthly
-    delta += inp.cross_sell_revenue_monthly
     delta *= (1 - inp.cannibalization_pct / 100)
-    return delta * 12
+    delta += inp.cross_sell_revenue_monthly
+    months = min(12, inp.product_lifetime_months)
+    return delta * months
 
 
 def calc_opex_reduction(inp: OpexReductionInput) -> float:
@@ -68,41 +71,66 @@ def calc_costs(c: CostInputs) -> dict:
         )
     )
     infra_monthly = c.gpu_servers_monthly + c.shared_platform_monthly + c.cloud_api_monthly
-    external_monthly = c.licenses_annual / 12 + (c.consulting_total + c.external_dev_total) / 36
+    external_recurring_monthly = c.licenses_annual / 12
+    external_capex_total = c.consulting_total + c.external_dev_total
 
     return {
         "payroll_monthly": payroll_monthly,
         "infra_monthly": infra_monthly,
-        "external_monthly": external_monthly,
-        "total_monthly": payroll_monthly + infra_monthly + external_monthly,
+        "external_recurring_monthly": external_recurring_monthly,
+        "external_capex_total": external_capex_total,
+        "recurring_monthly": payroll_monthly + infra_monthly + external_recurring_monthly,
         "payroll_annual": payroll_monthly * 12,
         "infra_annual": infra_monthly * 12,
-        "external_annual": external_monthly * 12,
-        "total_annual": (payroll_monthly + infra_monthly + external_monthly) * 12,
+        "external_annual": external_recurring_monthly * 12 + external_capex_total,
+        "total_annual": (payroll_monthly + infra_monthly + external_recurring_monthly) * 12 + external_capex_total,
     }
 
 
 def build_monthly_cashflows(
-    gross_monthly: float,
+    recurring_effects: dict,
+    onetime_effects: dict,
     virtual_monthly: float,
-    cost_monthly: float,
+    recurring_cost_monthly: float,
+    capex_total: float,
     dev_months: int,
     ramp_months: int,
     horizon: int = 36,
 ) -> tuple[list[float], list[float]]:
+    # FIX CFO-5: разделяем recurring и one-time эффекты
+    # FIX CFO-4 (partial): capex как разовый расход в период разработки
+    recurring_monthly = sum(recurring_effects.values()) / 12
+    onetime_total = sum(onetime_effects.values())
+
+    # Распределяем capex равномерно по месяцам разработки
+    capex_monthly = capex_total / max(dev_months, 1)
+
     cashflows = []
     cumulative = []
     cum = 0.0
+    onetime_applied = False
 
     for m in range(horizon):
-        cost = cost_monthly
+        # Costs: recurring always, capex only during development
+        cost = recurring_cost_monthly
+        if m < dev_months:
+            cost += capex_monthly
+
+        # Effects
         if m < dev_months:
             effect = 0.0
         elif m < dev_months + ramp_months and ramp_months > 0:
             progress = (m - dev_months + 1) / ramp_months
-            effect = (gross_monthly - virtual_monthly) * progress
+            effect = (recurring_monthly - virtual_monthly) * progress
+            # One-time effects at launch month
+            if not onetime_applied:
+                effect += onetime_total
+                onetime_applied = True
         else:
-            effect = gross_monthly - virtual_monthly
+            effect = recurring_monthly - virtual_monthly
+            if not onetime_applied:
+                effect += onetime_total
+                onetime_applied = True
 
         net = effect - cost
         cashflows.append(round(net, 2))
@@ -128,20 +156,24 @@ def calc_payback(cumulative: list[float]) -> int:
 
 
 def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
-    gross_effects = {}
+    recurring_effects = {}
+    onetime_effects = {}
     total_gross = 0.0
     virtual_pnl = 0.0
+    gross_effects = {}
 
     if "revenue_growth" in effects:
         inp = RevenueGrowthInput(**effects["revenue_growth"])
         val = calc_revenue_growth(inp)
         gross_effects["Рост доходов"] = round(val, 2)
+        recurring_effects["revenue_growth"] = val
         total_gross += val
 
     if "opex_reduction" in effects:
         inp = OpexReductionInput(**effects["opex_reduction"])
         val = calc_opex_reduction(inp)
         gross_effects["Снижение OPEX"] = round(val, 2)
+        recurring_effects["opex_reduction"] = val
         total_gross += val
 
     if "fte_optimization" in effects:
@@ -150,6 +182,7 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
         gross_effects["Оптимизация ФОТ (реальная)"] = round(real, 2)
         if virtual > 0:
             gross_effects["Ненайм (виртуальный PnL)"] = round(virtual, 2)
+        recurring_effects["fte_optimization"] = real
         total_gross += real
         virtual_pnl = virtual
 
@@ -157,30 +190,36 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
         inp = RiskReductionInput(**effects["risk_reduction"])
         val = calc_risk_reduction(inp)
         gross_effects["Снижение рисков"] = round(val, 2)
+        recurring_effects["risk_reduction"] = val
         total_gross += val
 
     if "liquidity_release" in effects:
         inp = LiquidityReleaseInput(**effects["liquidity_release"])
         val = calc_liquidity_release(inp)
         gross_effects["Высвобождение ликвидности"] = round(val, 2)
+        recurring_effects["liquidity_release"] = val
         total_gross += val
 
     if "reserve_recovery" in effects:
         inp = ReserveRecoveryInput(**effects["reserve_recovery"])
         val = calc_reserve_recovery(inp)
         gross_effects["Довзыскание резервов"] = round(val, 2)
+        recurring_effects["reserve_recovery"] = val
         total_gross += val
 
+    # FIX CFO-5: роспуск резервов — one-time эффект, не recurring
     if "reserve_release" in effects:
         inp = ReserveReleaseInput(**effects["reserve_release"])
         val = calc_reserve_release(inp)
-        gross_effects["Роспуск резервов"] = round(val, 2)
+        gross_effects["Роспуск резервов (разовый)"] = round(val, 2)
+        onetime_effects["reserve_release"] = val
         total_gross += val
 
     if "capital_cost_reduction" in effects:
         inp = CapitalCostReductionInput(**effects["capital_cost_reduction"])
         val = calc_capital_cost_reduction(inp)
         gross_effects["Снижение стоимости капитала"] = round(val, 2)
+        recurring_effects["capital_cost_reduction"] = val
         total_gross += val
 
     cost_data = calc_costs(costs_input)
@@ -189,9 +228,7 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
 
     roi = (net_effect / total_costs * 100) if total_costs > 0 else 0
 
-    gross_monthly = total_gross / 12
     virtual_monthly = virtual_pnl / 12
-    cost_monthly = cost_data["total_monthly"]
 
     ramp = max(
         costs_input.ramp_up_months,
@@ -199,7 +236,8 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
     ) if effects else costs_input.ramp_up_months
 
     cashflows, cumulative = build_monthly_cashflows(
-        gross_monthly, virtual_monthly, cost_monthly,
+        recurring_effects, onetime_effects, virtual_monthly,
+        cost_data["recurring_monthly"], cost_data["external_capex_total"],
         costs_input.development_months, ramp,
     )
 

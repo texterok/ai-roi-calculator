@@ -61,6 +61,10 @@ def validate(effects, costs_input, total_gross, total_costs, roi, virtual_pnl):
     if total_gross < 0:
         _add("E013")
 
+    # E014: двойной счёт OPEX + FTE
+    if "opex_reduction" in effects and "fte_optimization" in effects:
+        _add("E014")
+
     # E004: затраты подозрительно низкие
     if total_gross > 0 and total_costs > 0 and total_costs < total_gross * 0.05:
         _add("E004")

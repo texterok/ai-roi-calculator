@@ -35,12 +35,15 @@ const SCENARIOS = {
 };
 
 function selectScenario(key) {
+  // FIX UX-2: сброс выбранных эффектов при смене сценария
+  state.selectedEffects.clear();
+  document.querySelectorAll('.effect-card').forEach(c => c.classList.remove('selected'));
+
   state.scenario = key;
   document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
   document.querySelector(`[data-scenario="${key}"]`).classList.add('selected');
 
-  // Auto-advance after short delay
-  setTimeout(() => goToStep(1), 300);
+  setTimeout(() => goToStep(1), 600);
 }
 
 // Slider <-> Number sync
@@ -67,6 +70,10 @@ function goToStep(n) {
   }
   if (n === 2 && state.selectedEffects.size === 0) {
     alert('Выберите хотя бы один тип эффекта');
+    return;
+  }
+  // FIX UX-10: нельзя перейти к результатам без расчёта
+  if (n === 4 && !state.result) {
     return;
   }
   state.currentStep = n;
@@ -584,20 +591,38 @@ function gatherData() {
 }
 
 async function calculate() {
+  // FIX UX-1: обработка ошибок
   const data = gatherData();
+  const btn = document.querySelector('#step-3 .btn-primary');
+  const origText = btn.textContent;
+  btn.textContent = 'Считаем...';
+  btn.disabled = true;
 
-  const resp = await fetch('/roi/calculate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
+  try {
+    const resp = await fetch('/roi/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
 
-  state.result = await resp.json();
-  goToStep(4);
-  renderResults();
+    if (!resp.ok) {
+      alert('Ошибка сервера. Попробуйте ещё раз.');
+      return;
+    }
+
+    state.result = await resp.json();
+    goToStep(4);
+    renderResults();
+  } catch (e) {
+    alert('Ошибка соединения. Проверьте интернет и попробуйте ещё раз.');
+  } finally {
+    btn.textContent = origText;
+    btn.disabled = false;
+  }
 }
 
 function fmt(n) {
+  if (n === 0) return '0';
   if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + ' млрд';
   if (Math.abs(n) >= 1) return n.toFixed(1) + ' млн';
   return (n * 1000).toFixed(0) + ' тыс';
@@ -615,15 +640,18 @@ function renderResults() {
   document.getElementById('kpi-payback').textContent = r.payback_months > 0 ? r.payback_months + ' мес' : 'Не окупается';
   document.getElementById('kpi-payback').className = 'kpi-value ' + (r.payback_months > 0 && r.payback_months <= 24 ? 'positive' : 'negative');
 
+  // FIX UX-3: правильный знак в waterfall
   let tbody = '';
   for (const [name, val] of Object.entries(r.gross_effects)) {
     const isVirtual = name.includes('виртуальный');
+    const sign = val >= 0 ? '+' : '';
     tbody += `<tr class="${isVirtual ? 'virtual-row' : ''}">
       <td>${name}</td>
-      <td class="amount ${val >= 0 ? 'positive' : 'negative'}">+${fmt(val)} руб./год</td>
+      <td class="amount ${val >= 0 ? 'positive' : 'negative'}">${sign}${fmt(val)} руб./год</td>
     </tr>`;
   }
-  tbody += `<tr class="total-row"><td>Итого Gross</td><td class="amount positive">+${fmt(r.total_gross_annual)} руб./год</td></tr>`;
+  const grossSign = r.total_gross_annual >= 0 ? '+' : '';
+  tbody += `<tr class="total-row"><td>Итого Gross</td><td class="amount ${r.total_gross_annual >= 0 ? 'positive' : 'negative'}">${grossSign}${fmt(r.total_gross_annual)} руб./год</td></tr>`;
   for (const [name, val] of Object.entries(r.cost_breakdown)) {
     if (val > 0) tbody += `<tr><td>${name}</td><td class="amount negative">-${fmt(val)} руб./год</td></tr>`;
   }
