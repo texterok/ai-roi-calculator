@@ -6,15 +6,19 @@ const state = {
 
 // Slider <-> Number sync
 function syncSlider(rangeEl) {
-  const group = rangeEl.closest('.slider-input') || rangeEl.closest('.form-group');
+  const group = rangeEl.closest('.slider-input');
   const numEl = group.querySelector('input[type="number"]');
   if (numEl) numEl.value = rangeEl.value;
+  const effectKey = rangeEl.dataset.effect;
+  if (effectKey) validateInline(effectKey);
 }
 
 function syncNumber(numEl) {
-  const group = numEl.closest('.slider-input') || numEl.closest('.form-group');
+  const group = numEl.closest('.slider-input');
   const rangeEl = group.querySelector('input[type="range"]');
   if (rangeEl) rangeEl.value = numEl.value;
+  const effectKey = numEl.dataset.effect;
+  if (effectKey) validateInline(effectKey);
 }
 
 function goToStep(n) {
@@ -46,6 +50,150 @@ function toggleEffect(key) {
   }
 }
 
+// Get value of a field in current effect section
+function getFieldVal(effectKey, fieldId) {
+  const el = document.querySelector(`input[type="number"][data-effect="${effectKey}"][data-field="${fieldId}"]`);
+  return el ? parseFloat(el.value) || 0 : 0;
+}
+
+// Inline validation rules per effect type
+const INLINE_RULES = {
+  revenue_growth: (gv) => {
+    const warnings = [];
+    const baseline = gv('baseline_revenue_monthly');
+    const expected = gv('expected_revenue_monthly');
+    const crossSell = gv('cross_sell_revenue_monthly');
+    const cannib = gv('cannibalization_pct');
+
+    if (baseline > 0 && expected > 0) {
+      const pct = ((expected - baseline) / baseline) * 100;
+      if (pct > 100) {
+        warnings.push({ type: 'warn', text: `Рост выручки ${pct.toFixed(0)}% от baseline — убедитесь, что прогноз обоснован пилотными данными, а не экспертной оценкой.` });
+      } else if (pct > 50) {
+        warnings.push({ type: 'warn', text: `Рост выручки ${pct.toFixed(0)}% — амбициозная оценка. Принцип консерватизма: лучше заложить минимальный прогноз.` });
+      }
+      if (pct < 0) {
+        warnings.push({ type: 'err', text: 'Ожидаемая выручка ниже текущей. Это снижение дохода, а не рост.' });
+      }
+    }
+    if (baseline === 0 && expected > 0) {
+      warnings.push({ type: 'err', text: 'Не указан baseline (AS IS). Без текущего уровня невозможно оценить инкрементальный эффект.' });
+    }
+    if (crossSell > 0 && cannib === 0) {
+      warnings.push({ type: 'warn', text: 'Кросс-продажи без каннибализации. Обычно рост продаж одного продукта забирает 5–15% у смежных.' });
+    }
+    return warnings;
+  },
+
+  opex_reduction: (gv) => {
+    const warnings = [];
+    const current = gv('current_cost_monthly');
+    const expected = gv('expected_cost_monthly');
+
+    if (current > 0 && expected > current) {
+      warnings.push({ type: 'err', text: 'Ожидаемые затраты выше текущих — это увеличение расходов, а не снижение.' });
+    }
+    if (current > 0 && expected > 0) {
+      const reduction = ((current - expected) / current) * 100;
+      if (reduction > 50) {
+        warnings.push({ type: 'warn', text: `Снижение OPEX на ${reduction.toFixed(0)}% — проверьте, обосновано ли это. Отраслевой бенчмарк: ~10% от ИИ.` });
+      }
+    }
+    if (current === 0 && expected > 0) {
+      warnings.push({ type: 'err', text: 'Не указаны текущие затраты (AS IS).' });
+    }
+    return warnings;
+  },
+
+  fte_optimization: (gv) => {
+    const warnings = [];
+    const reduced = gv('fte_reduced');
+    const avoided = gv('fte_avoided');
+
+    if (avoided > 0 && reduced === 0) {
+      warnings.push({ type: 'warn', text: 'Только ненайм без реального сокращения. Ненайм — это виртуальный PnL, он не отразится в реальном P&L отчётного года.' });
+    }
+    if (reduced + avoided > 50) {
+      warnings.push({ type: 'warn', text: `Высвобождение ${reduced + avoided} ПШЕ — масштабная инициатива. Убедитесь, что нормативная численность рассчитана корректно.` });
+    }
+    return warnings;
+  },
+
+  risk_reduction: (gv) => {
+    const warnings = [];
+    const pct = gv('expected_prevention_pct');
+
+    if (pct > 80) {
+      warnings.push({ type: 'warn', text: `Предотвращение ${pct}% — крайне амбициозно. Отраслевой бенчмарк: 30–50%.` });
+    }
+    if (pct > 0 && gv('annual_loss_baseline') === 0) {
+      warnings.push({ type: 'err', text: 'Не указаны текущие потери (AS IS).' });
+    }
+    return warnings;
+  },
+
+  liquidity_release: (gv) => {
+    const warnings = [];
+    const current = gv('current_reserves');
+    const optimized = gv('optimized_reserves');
+
+    if (optimized > current && current > 0) {
+      warnings.push({ type: 'err', text: 'Оптимизированный объём больше текущего — это увеличение резервов, а не высвобождение.' });
+    }
+    if (current > 0 && optimized > 0) {
+      const pct = ((current - optimized) / current) * 100;
+      if (pct > 50) {
+        warnings.push({ type: 'warn', text: `Высвобождение ${pct.toFixed(0)}% ликвидности — проверьте соответствие нормативам.` });
+      }
+    }
+    return warnings;
+  },
+
+  reserve_recovery: (gv) => {
+    const warnings = [];
+    const current = gv('current_recovery_rate_pct');
+    const expected = gv('expected_recovery_rate_pct');
+    const delta = expected - current;
+
+    if (delta > 15) {
+      warnings.push({ type: 'warn', text: `Прирост ставки взыскания +${delta.toFixed(0)} п.п. — нетипично. Проверьте, подтверждено ли пилотом.` });
+    }
+    if (expected < current && current > 0) {
+      warnings.push({ type: 'err', text: 'Ожидаемая ставка ниже текущей — это ухудшение взыскания.' });
+    }
+    return warnings;
+  },
+
+  reserve_release: () => [],
+  capital_cost_reduction: () => [],
+};
+
+function validateInline(effectKey) {
+  const container = document.querySelector(`.form-section[data-section="${effectKey}"]`);
+  if (!container) return;
+
+  const warningDiv = container.querySelector('.inline-warnings');
+  if (!warningDiv) return;
+
+  const ruleFn = INLINE_RULES[effectKey];
+  if (!ruleFn) { warningDiv.innerHTML = ''; return; }
+
+  const gv = (fieldId) => getFieldVal(effectKey, fieldId);
+  const warnings = ruleFn(gv);
+
+  if (warnings.length === 0) {
+    warningDiv.innerHTML = '';
+    return;
+  }
+
+  warningDiv.innerHTML = warnings.map(w => `
+    <div class="inline-warning visible ${w.type}">
+      <span class="material-symbols-outlined">${w.type === 'err' ? 'error' : 'warning'}</span>
+      <span>${w.text}</span>
+    </div>
+  `).join('');
+}
+
 function renderEffectForms() {
   const container = document.getElementById('effect-forms');
   container.innerHTML = '';
@@ -54,78 +202,225 @@ function renderEffectForms() {
     revenue_growth: {
       title: 'Рост доходов',
       hint: 'Инкремент = TO BE минус AS IS. Не забудьте учесть каннибализацию: если вы увеличиваете продажи одного продукта, другие могут терять объём.',
-      fields: [
-        { id: 'baseline_revenue_monthly', label: 'Текущая выручка (AS IS)', unit: 'млн руб./мес', default: 0, min: 0, max: 5000, step: 1 },
-        { id: 'expected_revenue_monthly', label: 'Ожидаемая выручка (TO BE)', unit: 'млн руб./мес', default: 0, min: 0, max: 5000, step: 1 },
-        { id: 'cross_sell_revenue_monthly', label: 'Доход от кросс-продаж', unit: 'млн руб./мес', default: 0, min: 0, max: 500, step: 0.5 },
-        { id: 'cannibalization_pct', label: 'Каннибализация', unit: '%', default: 0, min: 0, max: 50, step: 1 },
-        { id: 'product_lifetime_months', label: 'Срок жизни продукта', unit: 'мес', default: 12, min: 1, max: 120, step: 1 },
-        { id: 'ramp_up_months', label: 'Период выхода на полный эффект', unit: 'мес', default: 3, min: 0, max: 12, step: 1 },
+      groups: [
+        {
+          title: 'Сейчас (AS IS)',
+          icon: 'history',
+          style: 'asis',
+          fields: [
+            { id: 'baseline_revenue_monthly', label: 'Текущая выручка', unit: 'млн руб./мес', default: 0, min: 0, max: 5000, step: 1 },
+          ],
+        },
+        {
+          title: 'После внедрения ИИ (TO BE)',
+          icon: 'rocket_launch',
+          style: 'tobe',
+          fields: [
+            { id: 'expected_revenue_monthly', label: 'Ожидаемая выручка', unit: 'млн руб./мес', default: 0, min: 0, max: 5000, step: 1 },
+          ],
+        },
+        {
+          title: 'Побочные эффекты',
+          icon: 'swap_horiz',
+          style: 'side',
+          fields: [
+            { id: 'cross_sell_revenue_monthly', label: 'Доход от кросс-продаж', unit: 'млн руб./мес', default: 0, min: 0, max: 500, step: 0.5 },
+            { id: 'cannibalization_pct', label: 'Каннибализация (потери смежных продуктов)', unit: '%', default: 0, min: 0, max: 50, step: 1 },
+          ],
+        },
+        {
+          title: 'Параметры расчёта',
+          icon: 'tune',
+          style: 'params',
+          fields: [
+            { id: 'product_lifetime_months', label: 'Срок жизни продукта', unit: 'мес', default: 12, min: 1, max: 120, step: 1 },
+            { id: 'ramp_up_months', label: 'Период выхода на полный эффект', unit: 'мес', default: 3, min: 0, max: 12, step: 1 },
+          ],
+        },
       ],
     },
+
     opex_reduction: {
       title: 'Снижение OPEX',
-      hint: 'Укажите текущий и ожидаемый уровень затрат. Эффект = разница между ними. Учтите, что экономия часто выходит на полный уровень не сразу.',
-      fields: [
-        { id: 'current_cost_monthly', label: 'Текущие затраты (AS IS)', unit: 'млн руб./мес', default: 0, min: 0, max: 1000, step: 1 },
-        { id: 'expected_cost_monthly', label: 'Ожидаемые затраты (TO BE)', unit: 'млн руб./мес', default: 0, min: 0, max: 1000, step: 1 },
-        { id: 'ramp_up_months', label: 'Период выхода на полный эффект', unit: 'мес', default: 3, min: 0, max: 12, step: 1 },
+      hint: 'Эффект = текущие затраты минус ожидаемые. Бенчмарк отрасли: ~10% снижения OPEX от внедрения ИИ.',
+      groups: [
+        {
+          title: 'Сейчас (AS IS)',
+          icon: 'history',
+          style: 'asis',
+          fields: [
+            { id: 'current_cost_monthly', label: 'Текущие операционные затраты', unit: 'млн руб./мес', default: 0, min: 0, max: 1000, step: 1 },
+          ],
+        },
+        {
+          title: 'После внедрения ИИ (TO BE)',
+          icon: 'rocket_launch',
+          style: 'tobe',
+          fields: [
+            { id: 'expected_cost_monthly', label: 'Ожидаемые затраты', unit: 'млн руб./мес', default: 0, min: 0, max: 1000, step: 1 },
+          ],
+        },
+        {
+          title: 'Параметры расчёта',
+          icon: 'tune',
+          style: 'params',
+          fields: [
+            { id: 'ramp_up_months', label: 'Период выхода на полный эффект', unit: 'мес', default: 3, min: 0, max: 12, step: 1 },
+          ],
+        },
       ],
     },
+
     fte_optimization: {
       title: 'Оптимизация ФОТ (ПШЕ)',
-      hint: 'Реальное сокращение = фактическое увольнение. Ненайм = сотрудники, которых не пришлось нанимать благодаря ИИ. Ненайм учитывается как виртуальный PnL отдельно.',
-      fields: [
-        { id: 'fte_reduced', label: 'Реальное сокращение ПШЕ', unit: 'чел', default: 0, min: 0, max: 100, step: 1 },
-        { id: 'fte_avoided', label: 'Ненайм (avoided)', unit: 'чел', default: 0, min: 0, max: 100, step: 1 },
-        { id: 'avg_salary_monthly', label: 'Средняя ЗП (gross)', unit: 'тыс. руб./мес', default: 0, min: 50, max: 1000, step: 10 },
-        { id: 'tax_rate_pct', label: 'Ставка взносов', unit: '%', default: 30.2, min: 0, max: 50, step: 0.1 },
-        { id: 'bonus_months', label: 'Бонус', unit: 'мес/год', default: 0, min: 0, max: 12, step: 0.5 },
-        { id: 'office_cost_per_fte_monthly', label: 'Расходы на рабочее место', unit: 'тыс. руб./мес', default: 0, min: 0, max: 200, step: 5 },
+      hint: 'Реальное сокращение — фактическое увольнение. Ненайм — сотрудники, которых не пришлось нанять. Ненайм = виртуальный PnL, учитывается отдельно.',
+      groups: [
+        {
+          title: 'Эффект на численность',
+          icon: 'groups',
+          style: 'tobe',
+          fields: [
+            { id: 'fte_reduced', label: 'Реальное сокращение ПШЕ', unit: 'чел', default: 0, min: 0, max: 100, step: 1 },
+            { id: 'fte_avoided', label: 'Ненайм (avoided hiring)', unit: 'чел', default: 0, min: 0, max: 100, step: 1 },
+          ],
+        },
+        {
+          title: 'Стоимость сотрудника',
+          icon: 'payments',
+          style: 'asis',
+          fields: [
+            { id: 'avg_salary_monthly', label: 'Средняя ЗП (gross)', unit: 'тыс. руб./мес', default: 0, min: 50, max: 1000, step: 10 },
+            { id: 'tax_rate_pct', label: 'Ставка взносов', unit: '%', default: 30.2, min: 0, max: 50, step: 0.1 },
+            { id: 'bonus_months', label: 'Бонус', unit: 'мес/год', default: 0, min: 0, max: 12, step: 0.5 },
+            { id: 'office_cost_per_fte_monthly', label: 'Расходы на рабочее место', unit: 'тыс. руб./мес', default: 0, min: 0, max: 200, step: 5 },
+          ],
+        },
       ],
     },
+
     risk_reduction: {
       title: 'Снижение операционных рисков',
-      hint: 'Укажите текущие потери от фрода/дефектов и ожидаемый % предотвращения. Не забудьте про стоимость ложных срабатываний — они тоже стоят денег.',
-      fields: [
-        { id: 'annual_loss_baseline', label: 'Текущие потери (AS IS)', unit: 'млн руб./год', default: 0, min: 0, max: 10000, step: 1 },
-        { id: 'expected_prevention_pct', label: 'Ожидаемое предотвращение', unit: '%', default: 0, min: 0, max: 100, step: 1 },
-        { id: 'false_positive_cost_annual', label: 'Стоимость ложных срабатываний', unit: 'млн руб./год', default: 0, min: 0, max: 500, step: 0.5 },
+      hint: 'Укажите текущие потери и ожидаемый % предотвращения. Отраслевой бенчмарк: 30–50%. Стоимость ложных срабатываний вычитается из эффекта.',
+      groups: [
+        {
+          title: 'Сейчас (AS IS)',
+          icon: 'history',
+          style: 'asis',
+          fields: [
+            { id: 'annual_loss_baseline', label: 'Текущие потери от фрода/дефектов', unit: 'млн руб./год', default: 0, min: 0, max: 10000, step: 1 },
+          ],
+        },
+        {
+          title: 'После внедрения ИИ (TO BE)',
+          icon: 'rocket_launch',
+          style: 'tobe',
+          fields: [
+            { id: 'expected_prevention_pct', label: 'Ожидаемое предотвращение', unit: '%', default: 0, min: 0, max: 100, step: 1 },
+          ],
+        },
+        {
+          title: 'Побочные эффекты',
+          icon: 'swap_horiz',
+          style: 'side',
+          fields: [
+            { id: 'false_positive_cost_annual', label: 'Стоимость ложных срабатываний', unit: 'млн руб./год', default: 0, min: 0, max: 500, step: 0.5 },
+          ],
+        },
       ],
     },
+
     liquidity_release: {
       title: 'Высвобождение ликвидности',
-      hint: 'Высвобожденные средства можно разместить по ставке overnight. Эффект = высвобожденный объём x стоимость фондирования.',
-      fields: [
-        { id: 'current_reserves', label: 'Текущий объём резервов', unit: 'млн руб.', default: 0, min: 0, max: 100000, step: 100 },
-        { id: 'optimized_reserves', label: 'Оптимизированный объём', unit: 'млн руб.', default: 0, min: 0, max: 100000, step: 100 },
-        { id: 'cost_of_funds_pct', label: 'Стоимость фондирования', unit: '% годовых', default: 8.0, min: 1, max: 25, step: 0.5 },
+      hint: 'Высвобожденные средства можно разместить по ставке overnight. Эффект = (текущий объём - оптимизированный) x ставка фондирования.',
+      groups: [
+        {
+          title: 'Сейчас (AS IS)',
+          icon: 'history',
+          style: 'asis',
+          fields: [
+            { id: 'current_reserves', label: 'Текущий объём резервов', unit: 'млн руб.', default: 0, min: 0, max: 100000, step: 100 },
+          ],
+        },
+        {
+          title: 'После внедрения ИИ (TO BE)',
+          icon: 'rocket_launch',
+          style: 'tobe',
+          fields: [
+            { id: 'optimized_reserves', label: 'Оптимизированный объём', unit: 'млн руб.', default: 0, min: 0, max: 100000, step: 100 },
+          ],
+        },
+        {
+          title: 'Параметры расчёта',
+          icon: 'tune',
+          style: 'params',
+          fields: [
+            { id: 'cost_of_funds_pct', label: 'Стоимость фондирования', unit: '% годовых', default: 8.0, min: 1, max: 25, step: 0.5 },
+          ],
+        },
       ],
     },
+
     reserve_recovery: {
       title: 'Довзыскание резервов',
-      hint: 'ИИ помогает точнее оценивать заёмщиков и эффективнее работать с просроченной задолженностью. Эффект = портфель x дельта ставки взыскания.',
-      fields: [
-        { id: 'portfolio_volume', label: 'Объём портфеля', unit: 'млн руб.', default: 0, min: 0, max: 500000, step: 100 },
-        { id: 'current_recovery_rate_pct', label: 'Текущий % взыскания', unit: '%', default: 0, min: 0, max: 100, step: 1 },
-        { id: 'expected_recovery_rate_pct', label: 'Ожидаемый % взыскания', unit: '%', default: 0, min: 0, max: 100, step: 1 },
+      hint: 'Эффект = портфель x (ожидаемая ставка - текущая ставка). ИИ помогает точнее оценивать заёмщиков и эффективнее взыскивать.',
+      groups: [
+        {
+          title: 'Сейчас (AS IS)',
+          icon: 'history',
+          style: 'asis',
+          fields: [
+            { id: 'portfolio_volume', label: 'Объём портфеля', unit: 'млн руб.', default: 0, min: 0, max: 500000, step: 100 },
+            { id: 'current_recovery_rate_pct', label: 'Текущий % взыскания', unit: '%', default: 0, min: 0, max: 100, step: 1 },
+          ],
+        },
+        {
+          title: 'После внедрения ИИ (TO BE)',
+          icon: 'rocket_launch',
+          style: 'tobe',
+          fields: [
+            { id: 'expected_recovery_rate_pct', label: 'Ожидаемый % взыскания', unit: '%', default: 0, min: 0, max: 100, step: 1 },
+          ],
+        },
       ],
     },
+
     reserve_release: {
       title: 'Роспуск резервов (учётный)',
-      hint: 'Это временный эффект: резервы высвобождаются сейчас, но могут потребоваться позже (принцип неттирования). Указывайте длительность эффекта.',
-      fields: [
-        { id: 'reserve_release_amount', label: 'Сумма роспуска', unit: 'млн руб.', default: 0, min: 0, max: 10000, step: 1 },
-        { id: 'effect_duration_months', label: 'Срок действия эффекта', unit: 'мес', default: 12, min: 1, max: 60, step: 1 },
+      hint: 'Временный эффект: резервы высвобождаются сейчас, но могут потребоваться позже (принцип неттирования). Укажите сумму и срок.',
+      groups: [
+        {
+          title: 'Параметры эффекта',
+          icon: 'tune',
+          style: 'tobe',
+          fields: [
+            { id: 'reserve_release_amount', label: 'Сумма роспуска', unit: 'млн руб.', default: 0, min: 0, max: 10000, step: 1 },
+            { id: 'effect_duration_months', label: 'Срок действия эффекта', unit: 'мес', default: 12, min: 1, max: 60, step: 1 },
+          ],
+        },
       ],
     },
+
     capital_cost_reduction: {
       title: 'Снижение стоимости капитала',
-      hint: 'Эффект возникает через снижение RWA (активов, взвешенных с учётом риска). Формула: снижение RWA x норматив H1 x стоимость капитала.',
-      fields: [
-        { id: 'rwa_reduction', label: 'Снижение RWA', unit: 'млн руб.', default: 0, min: 0, max: 100000, step: 100 },
-        { id: 'capital_adequacy_ratio_pct', label: 'Норматив достаточности (H1)', unit: '%', default: 12.0, min: 8, max: 20, step: 0.5 },
-        { id: 'cost_of_capital_pct', label: 'Стоимость капитала (CoE)', unit: '% годовых', default: 15.0, min: 5, max: 30, step: 0.5 },
+      hint: 'Формула: снижение RWA x норматив достаточности (H1) x стоимость капитала (CoE).',
+      groups: [
+        {
+          title: 'После внедрения ИИ (TO BE)',
+          icon: 'rocket_launch',
+          style: 'tobe',
+          fields: [
+            { id: 'rwa_reduction', label: 'Снижение RWA', unit: 'млн руб.', default: 0, min: 0, max: 100000, step: 100 },
+          ],
+        },
+        {
+          title: 'Параметры расчёта',
+          icon: 'tune',
+          style: 'params',
+          fields: [
+            { id: 'capital_adequacy_ratio_pct', label: 'Норматив достаточности (H1)', unit: '%', default: 12.0, min: 8, max: 20, step: 0.5 },
+            { id: 'cost_of_capital_pct', label: 'Стоимость капитала (CoE)', unit: '% годовых', default: 15.0, min: 5, max: 30, step: 0.5 },
+          ],
+        },
       ],
     },
   };
@@ -136,30 +431,44 @@ function renderEffectForms() {
 
     const section = document.createElement('div');
     section.className = 'form-section';
+    section.setAttribute('data-section', key);
     section.innerHTML = `<h3>${cfg.title}</h3>`;
     if (cfg.hint) {
       section.innerHTML += `<p class="section-hint">${cfg.hint}</p>`;
     }
 
-    for (let i = 0; i < cfg.fields.length; i += 2) {
-      const row = document.createElement('div');
-      row.className = 'form-row';
-      for (let j = i; j < Math.min(i + 2, cfg.fields.length); j++) {
-        const f = cfg.fields[j];
-        row.innerHTML += `
-          <div class="form-group">
-            <label>${f.label}</label>
-            <div class="slider-input">
-              <input type="range" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.default}"
-                     data-effect="${key}" data-field="${f.id}" oninput="syncSlider(this)">
-              <input type="number" step="any" value="${f.default}"
-                     data-effect="${key}" data-field="${f.id}" oninput="syncNumber(this)">
-            </div>
-            <span class="unit">${f.unit}</span>
-          </div>`;
+    for (const group of cfg.groups) {
+      const groupDiv = document.createElement('div');
+      groupDiv.className = `field-group group-${group.style}`;
+      groupDiv.innerHTML = `<div class="field-group-title"><span class="material-symbols-outlined">${group.icon}</span>${group.title}</div>`;
+
+      for (let i = 0; i < group.fields.length; i += 2) {
+        const row = document.createElement('div');
+        row.className = 'form-row';
+        for (let j = i; j < Math.min(i + 2, group.fields.length); j++) {
+          const f = group.fields[j];
+          row.innerHTML += `
+            <div class="form-group">
+              <label>${f.label}</label>
+              <div class="slider-input">
+                <input type="range" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.default}"
+                       data-effect="${key}" data-field="${f.id}" oninput="syncSlider(this)">
+                <input type="number" step="any" value="${f.default}"
+                       data-effect="${key}" data-field="${f.id}" oninput="syncNumber(this)">
+              </div>
+              <span class="unit">${f.unit}</span>
+            </div>`;
+        }
+        groupDiv.appendChild(row);
       }
-      section.appendChild(row);
+      section.appendChild(groupDiv);
     }
+
+    // Inline warnings container
+    const warningsDiv = document.createElement('div');
+    warningsDiv.className = 'inline-warnings';
+    section.appendChild(warningsDiv);
+
     container.appendChild(section);
   }
 }

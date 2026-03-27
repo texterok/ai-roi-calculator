@@ -236,6 +236,86 @@ h1 {
   margin: 0;
 }
 
+/* Field groups within form sections */
+.field-group {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+.field-group:last-child { margin-bottom: 0; }
+
+.field-group.group-asis {
+  background: var(--bg);
+  border-color: var(--border);
+}
+
+.field-group.group-tobe {
+  background: var(--accent-bg);
+  border-color: rgba(217, 119, 6, 0.2);
+}
+
+.field-group.group-side {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+}
+
+.field-group-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.group-asis .field-group-title { color: var(--text-muted); }
+.group-tobe .field-group-title { color: var(--accent); }
+.group-side .field-group-title { color: var(--text-muted); }
+.group-params .field-group-title { color: var(--text-muted); }
+
+.field-group-title .material-symbols-outlined {
+  font-size: 16px;
+}
+
+/* Inline warnings */
+.inline-warning {
+  display: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 12px;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.inline-warning.visible {
+  display: flex;
+}
+
+.inline-warning.warn {
+  background: var(--warning-bg);
+  color: var(--accent-text);
+  border-left: 3px solid var(--warning);
+}
+
+.inline-warning.err {
+  background: var(--error-bg);
+  color: #991B1B;
+  border-left: 3px solid var(--error);
+}
+
+.inline-warning .material-symbols-outlined {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 /* Slider + number input combo */
 .slider-input {
   display: flex;
