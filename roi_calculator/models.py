@@ -22,6 +22,7 @@ class RevenueGrowthInput:
     cannibalization_pct: float = 0
     product_lifetime_months: int = 12
     ramp_up_months: int = 3
+    attribution_pct: float = 100
 
 
 @dataclass
@@ -29,6 +30,7 @@ class OpexReductionInput:
     current_cost_monthly: float = 0
     expected_cost_monthly: float = 0
     ramp_up_months: int = 3
+    attribution_pct: float = 100
 
 
 @dataclass
@@ -39,6 +41,8 @@ class FteOptimizationInput:
     tax_rate_pct: float = 30.2
     bonus_months: float = 0
     office_cost_per_fte_monthly: float = 0
+    severance_months: float = 3
+    attribution_pct: float = 100
 
 
 @dataclass
@@ -46,13 +50,15 @@ class RiskReductionInput:
     annual_loss_baseline: float = 0
     expected_prevention_pct: float = 0
     false_positive_cost_annual: float = 0
+    attribution_pct: float = 100
 
 
 @dataclass
 class LiquidityReleaseInput:
     current_reserves: float = 0
     optimized_reserves: float = 0
-    cost_of_funds_pct: float = 8.0
+    overnight_rate_pct: float = 18.0
+    attribution_pct: float = 100
 
 
 @dataclass
@@ -60,12 +66,15 @@ class ReserveRecoveryInput:
     portfolio_volume: float = 0
     current_recovery_rate_pct: float = 0
     expected_recovery_rate_pct: float = 0
+    attribution_pct: float = 100
 
 
 @dataclass
 class ReserveReleaseInput:
     reserve_release_amount: float = 0
     effect_duration_months: int = 12
+    reversal_pct: float = 80
+    attribution_pct: float = 100
 
 
 @dataclass
@@ -73,6 +82,7 @@ class CapitalCostReductionInput:
     rwa_reduction: float = 0
     capital_adequacy_ratio_pct: float = 12.0
     cost_of_capital_pct: float = 15.0
+    attribution_pct: float = 100
 
 
 @dataclass

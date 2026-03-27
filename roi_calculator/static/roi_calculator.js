@@ -333,6 +333,7 @@ function renderEffectForms() {
           fields: [
             { id: 'product_lifetime_months', label: 'Срок жизни продукта', unit: 'мес', default: 12, min: 1, max: 120, step: 1 },
             { id: 'ramp_up_months', label: 'Период выхода на полный эффект', unit: 'мес', default: 3, min: 0, max: 12, step: 1 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],
@@ -364,6 +365,7 @@ function renderEffectForms() {
           style: 'params',
           fields: [
             { id: 'ramp_up_months', label: 'Период выхода на полный эффект', unit: 'мес', default: 3, min: 0, max: 12, step: 1 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],
@@ -391,6 +393,8 @@ function renderEffectForms() {
             { id: 'tax_rate_pct', label: 'Ставка взносов', unit: '%', default: 30.2, min: 0, max: 50, step: 0.1 },
             { id: 'bonus_months', label: 'Бонус', unit: 'мес/год', default: 0, min: 0, max: 12, step: 0.5 },
             { id: 'office_cost_per_fte_monthly', label: 'Расходы на рабочее место', unit: 'тыс. руб./мес', default: 0, min: 0, max: 200, step: 5 },
+            { id: 'severance_months', label: 'Выходное пособие при сокращении', unit: 'мес ЗП', default: 3, min: 0, max: 12, step: 1 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],
@@ -422,6 +426,7 @@ function renderEffectForms() {
           style: 'side',
           fields: [
             { id: 'false_positive_cost_annual', label: 'Стоимость ложных срабатываний', unit: 'млн руб./год', default: 0, min: 0, max: 500, step: 0.5 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],
@@ -429,7 +434,7 @@ function renderEffectForms() {
 
     liquidity_release: {
       title: 'Высвобождение ликвидности',
-      hint: 'Высвобожденные средства можно разместить по ставке overnight. Эффект = (текущий объём - оптимизированный) x ставка фондирования.',
+      hint: 'Высвобожденные средства размещаются по ставке Overnight (RUONIA). Эффект = (текущий объём - оптимизированный) x ставка Overnight.',
       groups: [
         {
           title: 'Сейчас (AS IS)',
@@ -452,7 +457,8 @@ function renderEffectForms() {
           icon: 'tune',
           style: 'params',
           fields: [
-            { id: 'cost_of_funds_pct', label: 'Стоимость фондирования', unit: '% годовых', default: 8.0, min: 1, max: 25, step: 0.5 },
+            { id: 'overnight_rate_pct', label: 'Ставка Overnight (RUONIA)', unit: '% годовых', default: 18.0, min: 1, max: 25, step: 0.5 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],
@@ -477,6 +483,7 @@ function renderEffectForms() {
           style: 'tobe',
           fields: [
             { id: 'expected_recovery_rate_pct', label: 'Ожидаемый % взыскания', unit: '%', default: 0, min: 0, max: 100, step: 1 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],
@@ -484,15 +491,17 @@ function renderEffectForms() {
 
     reserve_release: {
       title: 'Роспуск резервов (учётный)',
-      hint: 'Временный эффект: резервы высвобождаются сейчас, но могут потребоваться позже (принцип неттирования). Укажите сумму и срок.',
+      hint: 'Принцип неттирования: роспуск сейчас, но часть вернётся позже. Укажите % возврата — калькулятор покажет нетто-эффект.',
       groups: [
         {
           title: 'Параметры эффекта',
           icon: 'tune',
           style: 'tobe',
           fields: [
-            { id: 'reserve_release_amount', label: 'Сумма роспуска', unit: 'млн руб.', default: 0, min: 0, max: 10000, step: 1 },
-            { id: 'effect_duration_months', label: 'Срок действия эффекта', unit: 'мес', default: 12, min: 1, max: 60, step: 1 },
+            { id: 'reserve_release_amount', label: 'Сумма роспуска (gross)', unit: 'млн руб.', default: 0, min: 0, max: 10000, step: 1 },
+            { id: 'effect_duration_months', label: 'Срок до возврата резервов', unit: 'мес', default: 12, min: 1, max: 60, step: 1 },
+            { id: 'reversal_pct', label: 'Доля возврата (неттирование)', unit: '%', default: 80, min: 0, max: 100, step: 5 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],
@@ -517,6 +526,7 @@ function renderEffectForms() {
           fields: [
             { id: 'capital_adequacy_ratio_pct', label: 'Норматив достаточности (H1)', unit: '%', default: 12.0, min: 8, max: 20, step: 0.5 },
             { id: 'cost_of_capital_pct', label: 'Стоимость капитала (CoE)', unit: '% годовых', default: 15.0, min: 5, max: 30, step: 0.5 },
+            { id: 'attribution_pct', label: 'Доля эффекта ИИ (attribution)', unit: '%', default: 100, min: 10, max: 100, step: 5 },
           ],
         },
       ],

@@ -17,50 +17,72 @@ def _fte_full_cost_monthly(salary, tax_pct, bonus_months, office_cost):
     return salary * (1 + tax_pct / 100) * (1 + bonus_months / 12) + office_cost
 
 
+def _apply_attribution(value, attribution_pct):
+    return value * attribution_pct / 100
+
+
 def calc_revenue_growth(inp: RevenueGrowthInput) -> float:
-    # FIX CFO-1: каннибализация только на дельту выручки, не на кросс-продажи
-    # FIX CFO-3: product_lifetime теперь используется (cap на 12 мес в годовом расчёте)
     delta = inp.expected_revenue_monthly - inp.baseline_revenue_monthly
     delta *= (1 - inp.cannibalization_pct / 100)
     delta += inp.cross_sell_revenue_monthly
     months = min(12, inp.product_lifetime_months)
-    return delta * months
+    return _apply_attribution(delta * months, inp.attribution_pct)
 
 
 def calc_opex_reduction(inp: OpexReductionInput) -> float:
-    return (inp.current_cost_monthly - inp.expected_cost_monthly) * 12
+    val = (inp.current_cost_monthly - inp.expected_cost_monthly) * 12
+    return _apply_attribution(val, inp.attribution_pct)
 
 
-def calc_fte_optimization(inp: FteOptimizationInput) -> tuple[float, float]:
+def calc_fte_optimization(inp: FteOptimizationInput) -> tuple[float, float, float]:
+    """Returns (real_annual, virtual_annual, severance_onetime)."""
     cost = _fte_full_cost_monthly(
         inp.avg_salary_monthly, inp.tax_rate_pct,
         inp.bonus_months, inp.office_cost_per_fte_monthly,
     )
     real = inp.fte_reduced * cost * 12
     virtual = inp.fte_avoided * cost * 12
-    return real, virtual
+    # Severance: one-time cost = reduced FTE * monthly salary * severance months
+    severance = inp.fte_reduced * inp.avg_salary_monthly * (1 + inp.tax_rate_pct / 100) * inp.severance_months
+    return (
+        _apply_attribution(real, inp.attribution_pct),
+        _apply_attribution(virtual, inp.attribution_pct),
+        _apply_attribution(severance, inp.attribution_pct),
+    )
 
 
 def calc_risk_reduction(inp: RiskReductionInput) -> float:
-    return inp.annual_loss_baseline * inp.expected_prevention_pct / 100 - inp.false_positive_cost_annual
+    val = inp.annual_loss_baseline * inp.expected_prevention_pct / 100 - inp.false_positive_cost_annual
+    return _apply_attribution(val, inp.attribution_pct)
 
 
 def calc_liquidity_release(inp: LiquidityReleaseInput) -> float:
     released = inp.current_reserves - inp.optimized_reserves
-    return released * inp.cost_of_funds_pct / 100
+    val = released * inp.overnight_rate_pct / 100
+    return _apply_attribution(val, inp.attribution_pct)
 
 
 def calc_reserve_recovery(inp: ReserveRecoveryInput) -> float:
     delta_pct = inp.expected_recovery_rate_pct - inp.current_recovery_rate_pct
-    return inp.portfolio_volume * delta_pct / 100
+    val = inp.portfolio_volume * delta_pct / 100
+    return _apply_attribution(val, inp.attribution_pct)
 
 
-def calc_reserve_release(inp: ReserveReleaseInput) -> float:
-    return inp.reserve_release_amount
+def calc_reserve_release(inp: ReserveReleaseInput) -> tuple[float, float]:
+    """Returns (net_effect after netting, reversal_amount).
+    Netting: release now, but reversal_pct comes back later."""
+    gross = inp.reserve_release_amount
+    reversal = gross * inp.reversal_pct / 100
+    net = gross - reversal
+    return (
+        _apply_attribution(net, inp.attribution_pct),
+        _apply_attribution(reversal, inp.attribution_pct),
+    )
 
 
 def calc_capital_cost_reduction(inp: CapitalCostReductionInput) -> float:
-    return inp.rwa_reduction * inp.capital_adequacy_ratio_pct / 100 * inp.cost_of_capital_pct / 100
+    val = inp.rwa_reduction * inp.capital_adequacy_ratio_pct / 100 * inp.cost_of_capital_pct / 100
+    return _apply_attribution(val, inp.attribution_pct)
 
 
 def calc_costs(c: CostInputs) -> dict:
@@ -97,12 +119,9 @@ def build_monthly_cashflows(
     ramp_months: int,
     horizon: int = 36,
 ) -> tuple[list[float], list[float]]:
-    # FIX CFO-5: разделяем recurring и one-time эффекты
-    # FIX CFO-4 (partial): capex как разовый расход в период разработки
     recurring_monthly = sum(recurring_effects.values()) / 12
     onetime_total = sum(onetime_effects.values())
 
-    # Распределяем capex равномерно по месяцам разработки
     capex_monthly = capex_total / max(dev_months, 1)
 
     cashflows = []
@@ -111,18 +130,15 @@ def build_monthly_cashflows(
     onetime_applied = False
 
     for m in range(horizon):
-        # Costs: recurring always, capex only during development
         cost = recurring_cost_monthly
         if m < dev_months:
             cost += capex_monthly
 
-        # Effects
         if m < dev_months:
             effect = 0.0
         elif m < dev_months + ramp_months and ramp_months > 0:
             progress = (m - dev_months + 1) / ramp_months
             effect = (recurring_monthly - virtual_monthly) * progress
-            # One-time effects at launch month
             if not onetime_applied:
                 effect += onetime_total
                 onetime_applied = True
@@ -161,6 +177,7 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
     total_gross = 0.0
     virtual_pnl = 0.0
     gross_effects = {}
+    severance_total = 0.0
 
     if "revenue_growth" in effects:
         inp = RevenueGrowthInput(**effects["revenue_growth"])
@@ -178,12 +195,15 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
 
     if "fte_optimization" in effects:
         inp = FteOptimizationInput(**effects["fte_optimization"])
-        real, virtual = calc_fte_optimization(inp)
+        real, virtual, severance = calc_fte_optimization(inp)
         gross_effects["Оптимизация ФОТ (реальная)"] = round(real, 2)
         if virtual > 0:
             gross_effects["Ненайм (виртуальный PnL)"] = round(virtual, 2)
+        if severance > 0:
+            gross_effects["Выходные пособия (разовый расход)"] = round(-severance, 2)
         recurring_effects["fte_optimization"] = real
         total_gross += real
+        severance_total = severance
         virtual_pnl = virtual
 
     if "risk_reduction" in effects:
@@ -207,13 +227,15 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
         recurring_effects["reserve_recovery"] = val
         total_gross += val
 
-    # FIX CFO-5: роспуск резервов — one-time эффект, не recurring
+    # Reserve release: netting principle — net = release - reversal
     if "reserve_release" in effects:
         inp = ReserveReleaseInput(**effects["reserve_release"])
-        val = calc_reserve_release(inp)
-        gross_effects["Роспуск резервов (разовый)"] = round(val, 2)
-        onetime_effects["reserve_release"] = val
-        total_gross += val
+        net_release, reversal = calc_reserve_release(inp)
+        gross_effects[f"Роспуск резервов (разовый, нетто)"] = round(net_release, 2)
+        if reversal > 0:
+            gross_effects[f"  в т.ч. возврат резервов через {inp.effect_duration_months} мес"] = round(-reversal, 2)
+        onetime_effects["reserve_release"] = net_release
+        total_gross += net_release
 
     if "capital_cost_reduction" in effects:
         inp = CapitalCostReductionInput(**effects["capital_cost_reduction"])
@@ -223,7 +245,7 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
         total_gross += val
 
     cost_data = calc_costs(costs_input)
-    total_costs = cost_data["total_annual"]
+    total_costs = cost_data["total_annual"] + severance_total
     net_effect = total_gross - total_costs
 
     roi = (net_effect / total_costs * 100) if total_costs > 0 else 0
@@ -235,9 +257,12 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
         max((e.get("ramp_up_months", 3) for e in effects.values() if isinstance(e, dict)), default=3),
     ) if effects else costs_input.ramp_up_months
 
+    # Severance as one-time cost in cashflow (at launch month)
+    total_capex = cost_data["external_capex_total"] + severance_total
+
     cashflows, cumulative = build_monthly_cashflows(
         recurring_effects, onetime_effects, virtual_monthly,
-        cost_data["recurring_monthly"], cost_data["external_capex_total"],
+        cost_data["recurring_monthly"], total_capex,
         costs_input.development_months, ramp,
     )
 
@@ -256,14 +281,18 @@ def calculate(effects: dict, costs_input: CostInputs) -> CalculationResult:
     from roi_calculator.validators import validate
     warnings = validate(effects, costs_input, total_gross, total_costs, roi, virtual_pnl)
 
+    cost_breakdown = {
+        "ФОТ команды": round(cost_data["payroll_annual"], 2),
+        "Инфраструктура": round(cost_data["infra_annual"], 2),
+        "Внешние расходы": round(cost_data["external_annual"], 2),
+    }
+    if severance_total > 0:
+        cost_breakdown["Выходные пособия"] = round(severance_total, 2)
+
     return CalculationResult(
         gross_effects=gross_effects,
         total_gross_annual=round(total_gross, 2),
-        cost_breakdown={
-            "ФОТ команды": round(cost_data["payroll_annual"], 2),
-            "Инфраструктура": round(cost_data["infra_annual"], 2),
-            "Внешние расходы": round(cost_data["external_annual"], 2),
-        },
+        cost_breakdown=cost_breakdown,
         total_costs_annual=round(total_costs, 2),
         net_effect_annual=round(net_effect, 2),
         roi_pct=round(roi, 1),

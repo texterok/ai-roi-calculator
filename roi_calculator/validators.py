@@ -14,46 +14,64 @@ def validate(effects, costs_input, total_gross, total_costs, roi, virtual_pnl):
     if total_costs == 0 and total_gross > 0:
         _add("E001")
 
-    # Revenue growth checks
+    # E002: нет baseline — проверяем ВСЕ типы, не только revenue
+    if "revenue_growth" in effects:
+        rg = effects["revenue_growth"]
+        if rg.get("baseline_revenue_monthly", 0) == 0 and rg.get("expected_revenue_monthly", 0) > 0:
+            _add("E002")
+
+    if "opex_reduction" in effects:
+        op = effects["opex_reduction"]
+        if op.get("current_cost_monthly", 0) == 0 and op.get("expected_cost_monthly", 0) > 0:
+            _add("E002")
+
+    if "risk_reduction" in effects:
+        rr = effects["risk_reduction"]
+        if rr.get("annual_loss_baseline", 0) == 0 and rr.get("expected_prevention_pct", 0) > 0:
+            _add("E002")
+
+    if "liquidity_release" in effects:
+        lq = effects["liquidity_release"]
+        if lq.get("current_reserves", 0) == 0 and lq.get("optimized_reserves", 0) > 0:
+            _add("E002")
+
+    if "reserve_recovery" in effects:
+        rec = effects["reserve_recovery"]
+        if rec.get("current_recovery_rate_pct", 0) == 0 and rec.get("expected_recovery_rate_pct", 0) > 0:
+            _add("E002")
+
+    # E003: кросс-продажи без каннибализации
+    if "revenue_growth" in effects:
+        rg = effects["revenue_growth"]
+        if rg.get("cannibalization_pct", 0) == 0 and rg.get("cross_sell_revenue_monthly", 0) > 0:
+            _add("E003")
+
+    # E009: рост выручки > 100%
     if "revenue_growth" in effects:
         rg = effects["revenue_growth"]
         baseline = rg.get("baseline_revenue_monthly", 0)
         expected = rg.get("expected_revenue_monthly", 0)
-
-        # E002: нет baseline
-        if baseline == 0 and expected > 0:
-            _add("E002")
-
-        # E003: кросс-продажи без каннибализации
-        if rg.get("cannibalization_pct", 0) == 0 and rg.get("cross_sell_revenue_monthly", 0) > 0:
-            _add("E003")
-
-        # E009: рост > 100%
         if baseline > 0 and expected > baseline * 2:
             _add("E009")
 
-    # OPEX checks
+    # E010: OPEX TO BE > AS IS
     if "opex_reduction" in effects:
         opex = effects["opex_reduction"]
         current = opex.get("current_cost_monthly", 0)
         expected = opex.get("expected_cost_monthly", 0)
-
-        # E010: TO BE > AS IS
         if current > 0 and expected > current:
             _add("E010")
 
-    # Risk reduction checks
+    # E011: prevention > 80%
     if "risk_reduction" in effects:
         rr = effects["risk_reduction"]
-        # E011: prevention > 80%
         if rr.get("expected_prevention_pct", 0) > 80:
             _add("E011")
 
-    # Reserve recovery checks
+    # E012: recovery delta > 15 п.п.
     if "reserve_recovery" in effects:
         rec = effects["reserve_recovery"]
         delta = rec.get("expected_recovery_rate_pct", 0) - rec.get("current_recovery_rate_pct", 0)
-        # E012: delta > 15 п.п.
         if delta > 15:
             _add("E012")
 
@@ -84,5 +102,14 @@ def validate(effects, costs_input, total_gross, total_costs, roi, virtual_pnl):
     # E008: dev = 0
     if costs_input.development_months == 0:
         _add("E008")
+
+    # E015: attribution < 100% — информация
+    has_attribution = False
+    for eff_data in effects.values():
+        if isinstance(eff_data, dict) and eff_data.get("attribution_pct", 100) < 100:
+            has_attribution = True
+            break
+    if has_attribution:
+        _add("E015")
 
     return warnings
