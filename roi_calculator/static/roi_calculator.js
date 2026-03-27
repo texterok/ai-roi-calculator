@@ -251,8 +251,8 @@ function renderCashflowChart(r) {
         {
           label: 'Кумулятивный cashflow',
           data: r.cumulative_cashflows,
-          borderColor: '#7c3aed',
-          backgroundColor: 'rgba(124, 58, 237, 0.1)',
+          borderColor: '#D97706',
+          backgroundColor: 'rgba(217, 119, 6, 0.08)',
           fill: true,
           tension: 0.3,
           pointRadius: 0,
@@ -261,7 +261,7 @@ function renderCashflowChart(r) {
         {
           label: 'Помесячный cashflow',
           data: r.monthly_cashflows,
-          borderColor: '#a78bfa',
+          borderColor: '#B45309',
           borderDash: [4, 4],
           fill: false,
           tension: 0.3,
@@ -275,7 +275,7 @@ function renderCashflowChart(r) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          labels: { color: '#8b8fa3', font: { size: 11 } },
+          labels: { color: '#8C8577', font: { size: 11 } },
         },
         annotation: r.payback_months > 0 ? {
           annotations: {
@@ -283,14 +283,14 @@ function renderCashflowChart(r) {
               type: 'line',
               xMin: r.payback_months - 1,
               xMax: r.payback_months - 1,
-              borderColor: '#22c55e',
+              borderColor: '#16A34A',
               borderWidth: 2,
               borderDash: [6, 3],
               label: {
                 content: `Окупаемость: ${r.payback_months} мес`,
                 enabled: true,
                 position: 'start',
-                color: '#22c55e',
+                color: '#16A34A',
                 font: { size: 11 },
               },
             },
@@ -299,14 +299,14 @@ function renderCashflowChart(r) {
       },
       scales: {
         x: {
-          title: { display: true, text: 'Месяц', color: '#8b8fa3' },
-          ticks: { color: '#8b8fa3' },
-          grid: { color: 'rgba(42, 42, 58, 0.5)' },
+          title: { display: true, text: 'Месяц', color: '#8C8577' },
+          ticks: { color: '#8C8577' },
+          grid: { color: 'rgba(229, 224, 213, 0.7)' },
         },
         y: {
-          title: { display: true, text: 'млн руб.', color: '#8b8fa3' },
-          ticks: { color: '#8b8fa3' },
-          grid: { color: 'rgba(42, 42, 58, 0.5)' },
+          title: { display: true, text: 'млн руб.', color: '#8C8577' },
+          ticks: { color: '#8C8577' },
+          grid: { color: 'rgba(229, 224, 213, 0.7)' },
         },
       },
     },
